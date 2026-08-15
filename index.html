@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Road Trip Planner</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:            #0a120d;
+    --bg-raised:     #101c15;
+    --panel:         #142219;
+    --panel-2:       #0e1a12;
+    --border:        #274435;
+    --border-bright: #3a6b4c;
+    --green:         #3ddc5a;
+    --green-dim:     #1f8a3a;
+    --green-glow:    rgba(61,220,90,0.35);
+    --amber:         #ffb020;
+    --red:           #ff5555;
+    --text:          #e6f2e9;
+    --text-dim:      #7fa08c;
+    --text-faint:    #4e6b58;
+    --font-head: 'Oswald', sans-serif;
+    --font-body: 'Rajdhani', sans-serif;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(ellipse at top left, rgba(61,220,90,0.06), transparent 45%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.012) 0 2px, transparent 2px 6px),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    min-height:100vh;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    background:linear-gradient(180deg, var(--panel), var(--panel-2));
+    border-bottom:2px solid var(--green-dim);
+    padding:14px 20px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    position:sticky; top:0; z-index:50;
+    box-shadow:0 4px 18px rgba(0,0,0,0.5);
+    flex-wrap:wrap;
+  }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .brand-mark{
+    width:42px; height:42px; border-radius:6px;
+    background:linear-gradient(160deg, var(--green), var(--green-dim));
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-head); font-weight:700; font-size:20px; color:#06170c;
+    box-shadow:0 0 18px var(--green-glow);
+    flex-shrink:0;
+  }
+  .brand h1{
+    font-family:var(--font-head);
+    font-size:22px; letter-spacing:1.5px; text-transform:uppercase;
+    margin:0; color:var(--text);
+  }
+  .brand .sub{
+    font-size:11px; letter-spacing:2px; text-transform:uppercase;
+    color:var(--text-dim); margin-top:2px;
+  }
+  .status-pill{
+    font-size:11px; letter-spacing:1px; text-transform:uppercase;
+    padding:6px 12px; border-radius:100px;
+    border:1px solid var(--border-bright);
+    background:var(--panel-2);
+    color:var(--text-dim);
+    display:flex; align-items:center; gap:7px;
+  }
+  .status-dot{ width:8px; height:8px; border-radius:50%; background:var(--text-faint); transition:background .2s; }
+  .status-dot.on{ background:var(--green); box-shadow:0 0 8px var(--green-glow); }
+  .status-dot.busy{ background:var(--amber); animation:pulse 1s infinite; }
+  @keyframes pulse{ 50%{ opacity:.35; } }
+
+  /* ---------- Layout ---------- */
+  .app{
+    display:grid;
+    grid-template-columns:340px 1fr;
+    gap:16px;
+    padding:16px;
+    max-width:1500px;
+    margin:0 auto;
+  }
+  @media (max-width:900px){
+    .app{ grid-template-columns:1fr; }
+  }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:10px;
+    overflow:hidden;
+  }
+  .panel-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 14px;
+    border-bottom:1px solid var(--border);
+    background:var(--panel-2);
+  }
+  .panel-head h2{
+    font-family:var(--font-head); font-size:14px; letter-spacing:1.5px;
+    text-transform:uppercase; margin:0; color:var(--green);
+  }
+  .panel-body{ padding:14px; }
+
+  /* ---------- Buttons ---------- */
+  button{
+    font-family:var(--font-body); font-weight:600; letter-spacing:.5px;
+    cursor:pointer; border:none; border-radius:6px;
+    transition:transform .08s, box-shadow .15s, background .15s;
+  }
+  button:active{ transform:scale(0.97); }
+  .btn-primary{
+    background:linear-gradient(160deg, var(--green), var(--green-dim));
+    color:#06170c; padding:9px 16px; font-size:14px;
+    box-shadow:0 2px 10px var(--green-glow);
+  }
+  .btn-primary:hover{ box-shadow:0 2px 16px var(--green-glow); }
+  .btn-ghost{
+    background:transparent; color:var(--text-dim);
+    border:1px solid var(--border-bright); padding:8px 14px; font-size:13px;
+  }
+  .btn-ghost:hover{ color:var(--text); border-color:var(--green-dim); }
+  .btn-icon{
+    background:var(--panel-2); color:var(--text-dim);
+    border:1px solid var(--border); width:30px; height:30px;
+    display:flex; align-items:center; justify-content:center; font-size:14px;
+  }
+  .btn-icon:hover{ color:var(--red); border-color:var(--red); }
+  .btn-sm{ padding:6px 10px; font-size:12px; }
+  .btn-block{ width:100%; }
+
+  /* ---------- Trip list ---------- */
+  #tripList{ display:flex; flex-direction:column; gap:8px; margin-top:10px; max-height:60vh; overflow-y:auto; }
+  .trip-card{
+    background:var(--panel-2); border:1px solid var(--border);
+    border-radius:8px; padding:10px 12px; cursor:pointer;
+    transition:border-color .15s, background .15s;
+  }
+  .trip-card:hover{ border-color:var(--green-dim); }
+  .trip-card.active{ border-color:var(--green); background:rgba(61,220,90,0.06); }
+  .trip-card .name{ font-family:var(--font-head); font-size:15px; letter-spacing:.5px; }
+  .trip-card .meta{ font-size:12px; color:var(--text-dim); margin-top:3px; }
+  .empty-note{
+    color:var(--text-faint); font-size:13px; text-align:center;
+    padding:24px 10px; border:1px dashed var(--border); border-radius:8px; margin-top:10px;
+  }
+
+  /* ---------- Map ---------- */
+  #map{ height:340px; width:100%; background:#0e1a12; }
+  .leaflet-container{ font-family:var(--font-body); background:#0e1a12; }
+
+  /* ---------- Forms ---------- */
+  input[type="text"], textarea, select{
+    width:100%; background:var(--panel-2); border:1px solid var(--border);
+    color:var(--text); padding:9px 10px; border-radius:6px;
+    font-family:var(--font-body); font-size:14px;
+  }
+  input[type="text"]:focus, textarea:focus, select:focus{
+    outline:none; border-color:var(--green-dim);
+  }
+  label{ font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--text-dim); display:block; margin-bottom:5px; }
+  .field{ margin-bottom:12px; }
+  .row{ display:flex; gap:10px; }
+  .row > *{ flex:1; }
+
+  /* ---------- Waypoints ---------- */
+  #searchResults{ margin-top:8px; display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto; }
+  .result-item{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
+    padding:8px 10px; font-size:13px; cursor:pointer; display:flex; justify-content:space-between; align-items:center; gap:8px;
+  }
+  .result-item:hover{ border-color:var(--green-dim); }
+  .result-item .addr{ color:var(--text-dim); font-size:11px; }
+
+  #waypointList{ display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+  .waypoint-row{
+    display:flex; align-items:center; gap:8px;
+    background:var(--panel-2); border:1px solid var(--border); border-radius:6px; padding:8px 10px;
+  }
+  .waypoint-row .n{
+    width:22px; height:22px; border-radius:50%; background:var(--green-dim); color:#06170c;
+    display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0;
+  }
+  .waypoint-row .name{ flex:1; font-size:13.5px; }
+  .waypoint-row .cat{ font-size:10px; color:var(--text-faint); text-transform:uppercase; border:1px solid var(--border); border-radius:4px; padding:2px 6px; }
+
+  .route-stats{
+    display:flex; gap:16px; margin-top:12px; padding:10px 12px;
+    background:var(--panel-2); border:1px solid var(--border); border-radius:8px;
+  }
+  .route-stats div{ flex:1; text-align:center; }
+  .route-stats .val{ font-family:var(--font-head); font-size:20px; color:var(--green); }
+  .route-stats .lbl{ font-size:10px; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px; }
+
+  /* ---------- POI ---------- */
+  .poi-tabs{ display:flex; gap:6px; margin-top:10px; }
+  .poi-tab{
+    flex:1; text-align:center; padding:8px; font-size:12px; text-transform:uppercase; letter-spacing:.5px;
+    background:var(--panel-2); border:1px solid var(--border); border-radius:6px; cursor:pointer; color:var(--text-dim);
+  }
+  .poi-tab.active{ border-color:var(--green); color:var(--green); background:rgba(61,220,90,0.06); }
+
+  /* ---------- Itinerary ---------- */
+  .day-card{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:8px;
+    padding:10px 12px; margin-bottom:8px;
+  }
+  .day-card .head{ display:flex; justify-content:space-between; align-items:center; }
+  .day-card .title{ font-family:var(--font-head); font-size:14px; color:var(--green); }
+  .day-card .notes{ font-size:13px; color:var(--text-dim); margin-top:4px; white-space:pre-wrap; }
+
+  /* ---------- Tabs (main panel) ---------- */
+  .main-tabs{ display:flex; gap:4px; padding:0 14px; border-bottom:1px solid var(--border); background:var(--panel-2); }
+  .main-tab{
+    padding:12px 14px; font-size:13px; text-transform:uppercase; letter-spacing:1px;
+    color:var(--text-dim); cursor:pointer; border-bottom:2px solid transparent;
+  }
+  .main-tab.active{ color:var(--green); border-bottom-color:var(--green); }
+  .tab-panel{ display:none; }
+  .tab-panel.active{ display:block; }
+
+  .placeholder{
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+    height:300px; color:var(--text-faint); gap:8px; text-align:center; padding:20px;
+  }
+  .placeholder .big{ font-size:40px; }
+
+  ::-webkit-scrollbar{ width:8px; }
+  ::-webkit-scrollbar-track{ background:var(--panel-2); }
+  ::-webkit-scrollbar-thumb{ background:var(--border-bright); border-radius:4px; }
+
+  .toast{
+    position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+    background:var(--panel); border:1px solid var(--green-dim); color:var(--text);
+    padding:10px 18px; border-radius:8px; font-size:13px; z-index:200;
+    box-shadow:0 6px 24px rgba(0,0,0,0.6);
+    opacity:0; pointer-events:none; transition:opacity .2s, transform .2s;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(-6px); }
+  .toast.error{ border-color:var(--red); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark">RT</div>
+    <div>
+      <h1>Road Trip Planner</h1>
+      <div class="sub">Route · Stops · Itinerary</div>
+    </div>
+  </div>
+  <div class="status-pill">
+    <span class="status-dot" id="syncDot"></span>
+    <span id="syncLabel">Connecting…</span>
+  </div>
+</header>
+
+<div class="app">
+
+  <!-- LEFT: Trip list -->
+  <div class="panel">
+    <div class="panel-head">
+      <h2>Saved Trips</h2>
+      <button class="btn-primary btn-sm" onclick="startNewTrip()">+ New</button>
+    </div>
+    <div class="panel-body">
+      <div id="tripList"></div>
+      <div id="tripListEmpty" class="empty-note">No trips yet. Tap + New to plan one.</div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Editor -->
+  <div class="panel">
+    <div class="main-tabs">
+      <div class="main-tab active" data-tab="route" onclick="switchTab('route')">Route</div>
+      <div class="main-tab" data-tab="poi" onclick="switchTab('poi')">Nearby Stops</div>
+      <div class="main-tab" data-tab="itinerary" onclick="switchTab('itinerary')">Itinerary</div>
+    </div>
+
+    <div class="panel-body" id="editorArea">
+      <div class="placeholder" id="noTripPlaceholder">
+        <div class="big">🗺️</div>
+        <div>Select a trip on the left, or start a new one.</div>
+      </div>
+
+      <div id="editorContent" style="display:none;">
+        <div class="field">
+          <label>Trip Name</label>
+          <input type="text" id="tripName" placeholder="e.g. Fort Walton Beach to Jonesville, VA" oninput="markDirty()">
+        </div>
+
+        <!-- ROUTE TAB -->
+        <div class="tab-panel active" data-tabpanel="route">
+          <div class="field">
+            <label>Add a stop</label>
+            <input type="text" id="placeSearch" placeholder="Search address or place…" onkeydown="if(event.key==='Enter'){searchPlace();event.preventDefault();}">
+            <div id="searchResults"></div>
+          </div>
+
+          <div id="waypointList"></div>
+          <div id="routeStats"></div>
+
+          <div id="map"></div>
+        </div>
+
+        <!-- POI TAB -->
+        <div class="tab-panel" data-tabpanel="poi">
+          <label>Search near which stop?</label>
+          <select id="poiWaypointSelect" onchange="searchPOI()"></select>
+          <div class="poi-tabs">
+            <div class="poi-tab active" data-cat="fuel" onclick="setPOICategory('fuel')">Gas</div>
+            <div class="poi-tab" data-cat="food" onclick="setPOICategory('food')">Food</div>
+            <div class="poi-tab" data-cat="camping" onclick="setPOICategory('camping')">Camping</div>
+          </div>
+          <div id="poiResults" style="margin-top:10px; display:flex; flex-direction:column; gap:6px;"></div>
+        </div>
+
+        <!-- ITINERARY TAB -->
+        <div class="tab-panel" data-tabpanel="itinerary">
+          <div class="row" style="align-items:flex-end;">
+            <div class="field" style="flex:2;">
+              <label>Day title</label>
+              <input type="text" id="dayTitle" placeholder="e.g. Nashville to Memphis">
+            </div>
+            <div class="field" style="flex:0 0 auto;">
+              <button class="btn-primary btn-sm" onclick="addItineraryDay()">+ Add Day</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Notes</label>
+            <textarea id="dayNotes" rows="2" placeholder="Optional notes for this day"></textarea>
+          </div>
+          <div id="itineraryList"></div>
+        </div>
+
+        <div class="row" style="margin-top:16px;">
+          <button class="btn-primary btn-block" onclick="saveTrip()">Save Trip</button>
+          <button class="btn-ghost" onclick="deleteCurrentTrip()">Delete</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+
+<script>
+/* =========================================================================
+   FIREBASE SETUP
+   Replace this with the config object from your Firebase Console project
+   (Project Settings -> General -> Your apps -> SDK setup and configuration).
+   Same pattern as your other apps (BGT Dispatch, Fuel Log).
+   ========================================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyAEr3out59CVHFdJOz1Pj3LhnRkiTInPlY",
+  authDomain: "lets-go-a17de.firebaseapp.com",
+  projectId: "lets-go-a17de",
+  storageBucket: "lets-go-a17de.firebasestorage.app",
+  messagingSenderId: "375523737048",
+  appId: "1:375523737048:web:743a15ea0785b35bbf86ad",
+  measurementId: "G-QR1C8K4688"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+let uid = null;
+let tripsCollection = null;
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    uid = user.uid;
+    tripsCollection = db.collection('users').doc(uid).collection('trips');
+    setSyncStatus('on', 'Synced');
+    loadTrips();
+  }
+});
+auth.signInAnonymously().catch(err => {
+  console.error('Auth failed', err);
+  setSyncStatus('off', 'Offline (auth failed)');
+});
+
+function setSyncStatus(state, label) {
+  const dot = document.getElementById('syncDot');
+  dot.className = 'status-dot' + (state === 'on' ? ' on' : state === 'busy' ? ' busy' : '');
+  document.getElementById('syncLabel').textContent = label;
+}
+
+/* =========================================================================
+   STATE
+   ========================================================================= */
+let trips = [];              // all loaded trips, from Firestore
+let currentTrip = null;      // trip object currently being edited (in-memory copy)
+let map, routeLayer, markersLayer;
+let poiCategory = 'fuel';
+
+/* =========================================================================
+   MAP INIT
+   ========================================================================= */
+function initMap() {
+  map = L.map('map').setView([32.75, -96.8], 5); // rough US center default
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+    subdomains: 'abcd',
+    maxZoom: 19
+  }).addTo(map);
+  routeLayer = L.layerGroup().addTo(map);
+  markersLayer = L.layerGroup().addTo(map);
+}
+
+/* =========================================================================
+   TRIP LIST (Firestore)
+   ========================================================================= */
+async function loadTrips() {
+  if (!tripsCollection) return;
+  setSyncStatus('busy', 'Loading…');
+  try {
+    const snap = await tripsCollection.orderBy('createdDate', 'desc').get();
+    trips = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderTripList();
+    setSyncStatus('on', 'Synced');
+  } catch (err) {
+    console.error(err);
+    setSyncStatus('off', 'Sync error');
+  }
+}
+
+function renderTripList() {
+  const list = document.getElementById('tripList');
+  const empty = document.getElementById('tripListEmpty');
+  list.innerHTML = '';
+  empty.style.display = trips.length ? 'none' : 'block';
+
+  trips.forEach(trip => {
+    const el = document.createElement('div');
+    el.className = 'trip-card' + (currentTrip && currentTrip.id === trip.id ? ' active' : '');
+    el.onclick = () => openTrip(trip.id);
+    const stops = (trip.waypoints || []).length;
+    el.innerHTML = `<div class="name">${escapeHtml(trip.name || 'Untitled trip')}</div>
+                     <div class="meta">${stops} stop${stops === 1 ? '' : 's'} · ${(trip.itineraryDays || []).length} day plan</div>`;
+    list.appendChild(el);
+  });
+}
+
+function startNewTrip() {
+  currentTrip = {
+    id: null,
+    name: '',
+    createdDate: Date.now(),
+    waypoints: [],
+    itineraryDays: []
+  };
+  showEditor();
+}
+
+function openTrip(id) {
+  const trip = trips.find(t => t.id === id);
+  if (!trip) return;
+  currentTrip = JSON.parse(JSON.stringify(trip)); // deep copy for editing
+  showEditor();
+  renderTripList();
+}
+
+function showEditor() {
+  document.getElementById('noTripPlaceholder').style.display = 'none';
+  document.getElementById('editorContent').style.display = 'block';
+  document.getElementById('tripName').value = currentTrip.name || '';
+  renderWaypoints();
+  renderItinerary();
+  renderRouteOnMap();
+  populatePOIWaypointSelect();
+}
+
+function markDirty() {
+  if (currentTrip) currentTrip.name = document.getElementById('tripName').value;
+}
+
+async function saveTrip() {
+  if (!tripsCollection) { showToast('Not signed in yet — try again in a second.', true); return; }
+  currentTrip.name = document.getElementById('tripName').value.trim();
+  if (!currentTrip.name) { showToast('Give the trip a name first.', true); return; }
+  if ((currentTrip.waypoints || []).length < 2) { showToast('Add at least a start and end stop.', true); return; }
+
+  setSyncStatus('busy', 'Saving…');
+  try {
+    const data = {
+      name: currentTrip.name,
+      createdDate: currentTrip.createdDate || Date.now(),
+      waypoints: currentTrip.waypoints || [],
+      itineraryDays: currentTrip.itineraryDays || []
+    };
+    if (currentTrip.id) {
+      await tripsCollection.doc(currentTrip.id).set(data);
+    } else {
+      const ref = await tripsCollection.add(data);
+      currentTrip.id = ref.id;
+    }
+    showToast('Trip saved.');
+    await loadTrips();
+    setSyncStatus('on', 'Synced');
+  } catch (err) {
+    console.error(err);
+    showToast('Save failed: ' + err.message, true);
+    setSyncStatus('off', 'Sync error');
+  }
+}
+
+async function deleteCurrentTrip() {
+  if (!currentTrip || !currentTrip.id) {
+    currentTrip = null;
+    resetEditor();
+    return;
+  }
+  if (!confirm('Delete this trip? This can\'t be undone.')) return;
+  try {
+    await tripsCollection.doc(currentTrip.id).delete();
+    showToast('Trip deleted.');
+    currentTrip = null;
+    resetEditor();
+    await loadTrips();
+  } catch (err) {
+    showToast('Delete failed: ' + err.message, true);
+  }
+}
+
+function resetEditor() {
+  document.getElementById('noTripPlaceholder').style.display = 'flex';
+  document.getElementById('editorContent').style.display = 'none';
+  renderTripList();
+}
+
+/* =========================================================================
+   WAYPOINTS + PLACE SEARCH (Nominatim - free, no API key)
+   ========================================================================= */
+async function searchPlace() {
+  const q = document.getElementById('placeSearch').value.trim();
+  if (!q) return;
+  const results = document.getElementById('searchResults');
+  results.innerHTML = '<div class="empty-note">Searching…</div>';
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=6`;
+    const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+    const data = await res.json();
+    results.innerHTML = '';
+    if (!data.length) { results.innerHTML = '<div class="empty-note">No results.</div>'; return; }
+    data.forEach(place => {
+      const el = document.createElement('div');
+      el.className = 'result-item';
+      el.innerHTML = `<div><div>${escapeHtml(place.display_name.split(',')[0])}</div>
+                       <div class="addr">${escapeHtml(place.display_name)}</div></div>`;
+      el.onclick = () => addWaypoint(place.display_name.split(',')[0], parseFloat(place.lat), parseFloat(place.lon));
+      results.appendChild(el);
+    });
+  } catch (err) {
+    results.innerHTML = '<div class="empty-note">Search failed — check connection.</div>';
+  }
+}
+
+function addWaypoint(name, lat, lon, category) {
+  currentTrip.waypoints = currentTrip.waypoints || [];
+  currentTrip.waypoints.push({
+    name, latitude: lat, longitude: lon,
+    order: currentTrip.waypoints.length,
+    category: category || 'stop'
+  });
+  document.getElementById('placeSearch').value = '';
+  document.getElementById('searchResults').innerHTML = '';
+  renderWaypoints();
+  renderRouteOnMap();
+  populatePOIWaypointSelect();
+  showToast(`Added "${name}" to route.`);
+}
+
+function removeWaypoint(index) {
+  currentTrip.waypoints.splice(index, 1);
+  currentTrip.waypoints.forEach((w, i) => w.order = i);
+  renderWaypoints();
+  renderRouteOnMap();
+  populatePOIWaypointSelect();
+}
+
+function moveWaypoint(index, dir) {
+  const arr = currentTrip.waypoints;
+  const j = index + dir;
+  if (j < 0 || j >= arr.length) return;
+  [arr[index], arr[j]] = [arr[j], arr[index]];
+  arr.forEach((w, i) => w.order = i);
+  renderWaypoints();
+  renderRouteOnMap();
+}
+
+function renderWaypoints() {
+  const list = document.getElementById('waypointList');
+  list.innerHTML = '';
+  (currentTrip.waypoints || []).forEach((wp, i) => {
+    const el = document.createElement('div');
+    el.className = 'waypoint-row';
+    el.innerHTML = `
+      <div class="n">${i + 1}</div>
+      <div class="name">${escapeHtml(wp.name)}</div>
+      <div class="cat">${escapeHtml(wp.category || 'stop')}</div>
+      <button class="btn-icon" style="color:var(--text-dim)" onclick="moveWaypoint(${i},-1)" title="Move up">↑</button>
+      <button class="btn-icon" style="color:var(--text-dim)" onclick="moveWaypoint(${i},1)" title="Move down">↓</button>
+      <button class="btn-icon" onclick="removeWaypoint(${i})" title="Remove">✕</button>
+    `;
+    list.appendChild(el);
+  });
+}
+
+/* =========================================================================
+   ROUTING (OSRM public demo server - free, no API key, driving only)
+   ========================================================================= */
+async function renderRouteOnMap() {
+  routeLayer.clearLayers();
+  markersLayer.clearLayers();
+  document.getElementById('routeStats').innerHTML = '';
+
+  const wps = currentTrip.waypoints || [];
+  wps.forEach((wp, i) => {
+    const marker = L.circleMarker([wp.latitude, wp.longitude], {
+      radius: 7, color: '#3ddc5a', fillColor: '#3ddc5a', fillOpacity: 0.9, weight: 2
+    }).bindTooltip(`${i + 1}. ${wp.name}`, { permanent: false });
+    markersLayer.addLayer(marker);
+  });
+
+  if (wps.length >= 2) {
+    map.fitBounds(wps.map(w => [w.latitude, w.longitude]), { padding: [30, 30] });
+  } else if (wps.length === 1) {
+    map.setView([wps[0].latitude, wps[0].longitude], 10);
+  }
+
+  if (wps.length < 2) return;
+
+  try {
+    const coords = wps.map(w => `${w.longitude},${w.latitude}`).join(';');
+    const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.code !== 'Ok' || !data.routes || !data.routes.length) return;
+
+    const route = data.routes[0];
+    const latlngs = route.geometry.coordinates.map(c => [c[1], c[0]]);
+    L.polyline(latlngs, { color: '#3ddc5a', weight: 4, opacity: 0.85 }).addTo(routeLayer);
+    map.fitBounds(latlngs, { padding: [30, 30] });
+
+    const miles = (route.distance / 1609.34).toFixed(0);
+    const hrs = Math.floor(route.duration / 3600);
+    const mins = Math.round((route.duration % 3600) / 60);
+    document.getElementById('routeStats').innerHTML = `
+      <div class="route-stats">
+        <div><div class="val">${miles}</div><div class="lbl">Miles</div></div>
+        <div><div class="val">${hrs}h ${mins}m</div><div class="lbl">Drive time</div></div>
+        <div><div class="val">${wps.length}</div><div class="lbl">Stops</div></div>
+      </div>`;
+  } catch (err) {
+    console.error('Routing failed', err);
+  }
+}
+
+/* =========================================================================
+   POI SEARCH (Overpass API - free, no API key)
+   ========================================================================= */
+function populatePOIWaypointSelect() {
+  const sel = document.getElementById('poiWaypointSelect');
+  sel.innerHTML = '';
+  (currentTrip.waypoints || []).forEach((wp, i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = wp.name;
+    sel.appendChild(opt);
+  });
+  if ((currentTrip.waypoints || []).length) searchPOI();
+}
+
+function setPOICategory(cat) {
+  poiCategory = cat;
+  document.querySelectorAll('.poi-tab').forEach(t => t.classList.toggle('active', t.dataset.cat === cat));
+  searchPOI();
+}
+
+const OVERPASS_TAGS = {
+  fuel: '["amenity"="fuel"]',
+  food: '["amenity"~"restaurant|cafe|fast_food"]',
+  camping: '["tourism"="camp_site"]'
+};
+
+async function searchPOI() {
+  const sel = document.getElementById('poiWaypointSelect');
+  const results = document.getElementById('poiResults');
+  const idx = parseInt(sel.value);
+  const wp = (currentTrip.waypoints || [])[idx];
+  if (!wp) { results.innerHTML = ''; return; }
+
+  results.innerHTML = '<div class="empty-note">Searching…</div>';
+  const radius = 16000; // ~10 miles
+  const tag = OVERPASS_TAGS[poiCategory];
+  const query = `[out:json][timeout:15];node${tag}(around:${radius},${wp.latitude},${wp.longitude});out 20;`;
+
+  try {
+    const res = await fetch('https://overpass-api.de/api/interpreter', {
+      method: 'POST',
+      body: query
+    });
+    const data = await res.json();
+    results.innerHTML = '';
+    if (!data.elements || !data.elements.length) {
+      results.innerHTML = '<div class="empty-note">Nothing found nearby.</div>';
+      return;
+    }
+    data.elements.slice(0, 15).forEach(el => {
+      const name = (el.tags && el.tags.name) || poiCategory + ' stop';
+      const row = document.createElement('div');
+      row.className = 'result-item';
+      row.innerHTML = `<div>${escapeHtml(name)}</div>`;
+      const addBtn = document.createElement('button');
+      addBtn.className = 'btn-ghost btn-sm';
+      addBtn.textContent = '+ Add';
+      addBtn.onclick = () => addWaypoint(name, el.lat, el.lon, poiCategory);
+      row.appendChild(addBtn);
+      results.appendChild(row);
+    });
+  } catch (err) {
+    results.innerHTML = '<div class="empty-note">POI search failed — check connection.</div>';
+  }
+}
+
+/* =========================================================================
+   ITINERARY
+   ========================================================================= */
+function addItineraryDay() {
+  const title = document.getElementById('dayTitle').value.trim();
+  if (!title) { showToast('Give the day a title.', true); return; }
+  const notes = document.getElementById('dayNotes').value.trim();
+  currentTrip.itineraryDays = currentTrip.itineraryDays || [];
+  currentTrip.itineraryDays.push({
+    dayNumber: currentTrip.itineraryDays.length + 1,
+    title, notes
+  });
+  document.getElementById('dayTitle').value = '';
+  document.getElementById('dayNotes').value = '';
+  renderItinerary();
+}
+
+function removeItineraryDay(i) {
+  currentTrip.itineraryDays.splice(i, 1);
+  currentTrip.itineraryDays.forEach((d, idx) => d.dayNumber = idx + 1);
+  renderItinerary();
+}
+
+function renderItinerary() {
+  const list = document.getElementById('itineraryList');
+  list.innerHTML = '';
+  (currentTrip.itineraryDays || []).forEach((day, i) => {
+    const el = document.createElement('div');
+    el.className = 'day-card';
+    el.innerHTML = `
+      <div class="head">
+        <div class="title">Day ${day.dayNumber}: ${escapeHtml(day.title)}</div>
+        <button class="btn-icon" onclick="removeItineraryDay(${i})">✕</button>
+      </div>
+      ${day.notes ? `<div class="notes">${escapeHtml(day.notes)}</div>` : ''}
+    `;
+    list.appendChild(el);
+  });
+}
+
+/* =========================================================================
+   TABS
+   ========================================================================= */
+function switchTab(tab) {
+  document.querySelectorAll('.main-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.dataset.tabpanel === tab));
+  if (tab === 'route' && map) setTimeout(() => map.invalidateSize(), 50);
+}
+
+/* =========================================================================
+   UTIL
+   ========================================================================= */
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : String(str);
+  return div.innerHTML;
+}
+
+let toastTimer;
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+/* =========================================================================
+   INIT
+   ========================================================================= */
+initMap();
+</script>
+</body>
+</html>
